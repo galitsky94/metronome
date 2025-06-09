@@ -6,12 +6,36 @@ function App() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [beat, setBeat] = useState(0)
   const [isDarkMode, setIsDarkMode] = useState(true)
+  const [timeSignature, setTimeSignature] = useState('4/4')
   const intervalRef = useRef<number | null>(null)
   const audioPoolRef = useRef<HTMLAudioElement[]>([])
   const audioIndexRef = useRef(0)
 
+  // Generate stable IDs for EQ bars to avoid array index keys
+  const eqBarIds = useRef(Array.from({ length: 15 }, (_, i) => `eq-bar-${Math.random().toString(36).substr(2, 9)}-${i}`))
+
+  // Generate stable IDs for beat indicators
+  const beatIndicatorIds = useRef<{ [key: string]: string[] }>({})
+
+  const getBeatsIndicatorIds = (signature: string, count: number) => {
+    if (!beatIndicatorIds.current[signature] || beatIndicatorIds.current[signature].length !== count) {
+      beatIndicatorIds.current[signature] = Array.from({ length: count }, (_, i) => `beat-${signature}-${Math.random().toString(36).substr(2, 9)}-${i}`)
+    }
+    return beatIndicatorIds.current[signature]
+  }
+
   // Calculate interval from BPM
   const interval = (60 / bpm) * 1000
+
+  // Get beats per measure from time signature
+  const getBeatsPerMeasure = (sig: string) => {
+    const signatures: { [key: string]: number } = {
+      '2/4': 2, '3/4': 3, '4/4': 4, '5/4': 5, '6/8': 6, '7/8': 7, '9/8': 9, '12/8': 12
+    }
+    return signatures[sig] || 4
+  }
+
+  const beatsPerMeasure = getBeatsPerMeasure(timeSignature)
 
   // Initialize audio pool - 5 instances for 1.1 second overlaps
   useEffect(() => {
@@ -42,7 +66,7 @@ function App() {
 
     if (isPlaying) {
       intervalRef.current = setInterval(() => {
-        setBeat((prev) => (prev + 1) % 4)
+        setBeat((prev) => (prev + 1) % beatsPerMeasure)
         playSound()
       }, interval)
     }
@@ -52,7 +76,7 @@ function App() {
         clearInterval(intervalRef.current)
       }
     }
-  }, [isPlaying, interval, playSound])
+  }, [isPlaying, interval, playSound, beatsPerMeasure])
 
   const togglePlay = () => {
     setIsPlaying(!isPlaying)
@@ -69,6 +93,11 @@ function App() {
     setIsDarkMode(!isDarkMode)
   }
 
+  const handleTimeSignatureChange = (newSignature: string) => {
+    setTimeSignature(newSignature)
+    setBeat(0) // Reset beat when changing signature
+  }
+
   return (
     <div className={`min-h-screen transition-all duration-500 ${
       isDarkMode
@@ -78,13 +107,31 @@ function App() {
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex justify-between items-center mb-12">
-          <h1 className={`text-4xl font-bold bg-gradient-to-r ${
-            isDarkMode
-              ? 'from-pink-400 to-purple-400'
-              : 'from-purple-600 to-pink-600'
-          } bg-clip-text text-transparent`}>
-            metronome
-          </h1>
+          <div className="flex items-center gap-4">
+            <h2 className={`text-lg font-medium ${
+              isDarkMode ? 'text-white/70' : 'text-gray-600'
+            }`}>
+              Time Signature
+            </h2>
+            <select
+              value={timeSignature}
+              onChange={(e) => handleTimeSignatureChange(e.target.value)}
+              className={`px-4 py-2 rounded-lg text-xl font-bold border-none outline-none transition-all duration-300 ${
+                isDarkMode
+                  ? 'bg-white/10 text-white backdrop-blur-md hover:bg-white/15'
+                  : 'bg-black/10 text-gray-800 backdrop-blur-md hover:bg-black/15'
+              }`}
+            >
+              <option value="2/4">2/4</option>
+              <option value="3/4">3/4</option>
+              <option value="4/4">4/4</option>
+              <option value="5/4">5/4</option>
+              <option value="6/8">6/8</option>
+              <option value="7/8">7/8</option>
+              <option value="9/8">9/8</option>
+              <option value="12/8">12/8</option>
+            </select>
+          </div>
           <button
             onClick={toggleTheme}
             className={`p-3 rounded-full transition-all duration-300 ${
@@ -102,7 +149,7 @@ function App() {
           {/* EQ Visualizer */}
           <div className="flex justify-center mb-12">
             <div className="flex items-end gap-1 h-32 px-8">
-              {Array(15).fill(0).map((_, index) => {
+{eqBarIds.current.map((barId, index) => {
                 // Spectrum colors - frequency-based like real audio visualizer
                 const getSpectrumColor = (barIndex: number, intensity: number) => {
                   const normalizedIndex = barIndex / 14 // 0 to 1
@@ -118,7 +165,7 @@ function App() {
                   const staticIntensity = 0.3
                   return (
                     <div
-                      key={`eq-bar-${index}`}
+                      key={barId}
                       className="w-2 transition-all duration-700 rounded-t-sm"
                       style={{
                         height: `${staticHeight}%`,
@@ -158,7 +205,7 @@ function App() {
 
                 return (
                   <div
-                    key={`eq-bar-${index}`}
+                    key={barId}
                     className="w-2 transition-all duration-100 rounded-t-sm"
                     style={{
                       height: `${Math.min(Math.max(finalHeight, 8), 88)}%`,
@@ -221,9 +268,9 @@ function App() {
 
           {/* Beat Indicators */}
           <div className="flex justify-center gap-2">
-            {[0, 1, 2, 3].map((index) => (
+            {getBeatsIndicatorIds(timeSignature, beatsPerMeasure).map((beatId, index) => (
               <div
-                key={index}
+                key={beatId}
                 className={`w-3 h-3 rounded-full transition-all duration-200 ${
                   isPlaying && beat === index
                     ? `bg-gradient-to-r ${isDarkMode ? 'from-yellow-400 to-orange-400' : 'from-orange-400 to-yellow-400'}`
