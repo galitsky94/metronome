@@ -103,26 +103,58 @@ function App() {
           <div className="flex justify-center mb-12">
             <div className="flex items-end gap-1 h-32 px-8">
               {Array(15).fill(0).map((_, index) => {
-                // Create deterministic but varied heights based on index and beat
-                const baseHeight = 25 + (index % 7) * 5 + (index % 3) * 3 // Varied base heights
-                const beatPhase = (beat + index) % 4 // Different bars peak at different beats
-                const beatMultiplier = isPlaying
-                  ? (beatPhase === 0 ? 1.6 : beatPhase === 1 ? 1.3 : beatPhase === 2 ? 1.1 : 0.9)
-                  : 0.6
-                const height = baseHeight * beatMultiplier
+                if (!isPlaying) {
+                  // Static state - gentle random heights
+                  const staticHeight = 15 + (index % 5) * 3
+                  return (
+                    <div
+                      key={`eq-bar-${index}`}
+                      className={`w-2 transition-all duration-500 rounded-t-sm ${
+                        isDarkMode
+                          ? 'bg-gradient-to-t from-cyan-400 via-blue-500 to-purple-500'
+                          : 'bg-gradient-to-t from-cyan-500 via-purple-500 to-pink-500'
+                      }`}
+                      style={{
+                        height: `${staticHeight}%`,
+                        filter: 'brightness(0.4) saturate(0.8)',
+                        opacity: 0.7
+                      }}
+                    />
+                  )
+                }
+
+                // Natural EQ simulation when playing
+                const time = Date.now() / 1000 // Convert to seconds
+                const barFreq = 0.5 + index * 0.3 // Each bar has different frequency
+                const beatPulse = Math.sin(time * (60 / interval) * 1000 * Math.PI / 500) // Sync with BPM
+                const naturalWave = Math.sin(time * barFreq + index) * 0.3 // Individual bar movement
+                const randomFlutter = Math.sin(time * (2 + index * 0.5)) * 0.15 // Random variation
+
+                // Frequency response simulation (lower frequencies react more to beats)
+                const freqResponse = index < 5 ? 0.8 : index < 10 ? 0.6 : 0.4
+                const beatInfluence = beatPulse * freqResponse
+
+                // Combine all influences
+                const baseHeight = 20 + index * 2 // Base frequency curve
+                const dynamicMultiplier = 1 + beatInfluence + naturalWave + randomFlutter
+                const finalHeight = Math.max(baseHeight * dynamicMultiplier, 8)
+
+                // Color intensity based on activity
+                const intensity = Math.max(0.3, Math.min(1.2, dynamicMultiplier))
 
                 return (
                   <div
                     key={`eq-bar-${index}`}
-                    className={`w-2 transition-all duration-150 rounded-t-sm ${
+                    className={`w-2 transition-all duration-75 rounded-t-sm ${
                       isDarkMode
                         ? 'bg-gradient-to-t from-cyan-400 via-blue-500 to-purple-500'
                         : 'bg-gradient-to-t from-cyan-500 via-purple-500 to-pink-500'
                     }`}
                     style={{
-                      height: `${Math.max(height, 10)}%`,
-                      filter: isPlaying ? 'brightness(1.2) saturate(1.1)' : 'brightness(0.6)',
-                      boxShadow: isPlaying && beatPhase === 0 ? '0 0 8px rgba(139, 92, 246, 0.5)' : 'none'
+                      height: `${Math.min(finalHeight, 85)}%`,
+                      filter: `brightness(${intensity}) saturate(${intensity})`,
+                      boxShadow: intensity > 1 ? `0 0 ${6 * intensity}px rgba(139, 92, 246, ${0.3 * intensity})` : 'none',
+                      opacity: 0.8 + intensity * 0.2
                     }}
                   />
                 )
