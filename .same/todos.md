@@ -36,6 +36,14 @@
 - Clean, lint-free code
 - Optimized performance
 
+## Version 18 In Progress ⚡
+- [x] Enhanced audio pool (10 instances)
+- [x] Improved high BPM audio playback
+- [x] Smart audio instance selection
+- [x] Removed icons from play button
+- [x] Added beautiful gradients to play button
+- [x] Enhanced button animations and effects
+
 ## Status
 - [x] Project setup complete
 - [x] Dev server running

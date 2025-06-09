@@ -37,24 +37,44 @@ function App() {
 
   const beatsPerMeasure = getBeatsPerMeasure(timeSignature)
 
-  // Initialize audio pool - 5 instances for 1.1 second overlaps
+  // Initialize audio pool - 10 instances for better high BPM support
   useEffect(() => {
-    audioPoolRef.current = Array(5).fill(null).map(() => {
+    audioPoolRef.current = Array(10).fill(null).map(() => {
       const audio = new Audio('/sound-a-woman-enjoys-coitus (mp3cut.net).mp3')
       audio.volume = 1.0
+      audio.preload = 'auto'  // Preload audio for instant playback
       return audio
     })
   }, [])
 
-  // Play sound using audio pool - preserves full 1.1s duration
+  // Advanced audio pool - finds truly free instance or least recently used
   const playSound = useCallback(() => {
-    const audio = audioPoolRef.current[audioIndexRef.current]
-    if (audio) {
-      audio.currentTime = 0  // Reset only this instance
-      audio.play()
+    // Find a free audio instance (not currently playing)
+    let freeAudio = audioPoolRef.current.find(audio =>
+      audio.paused || audio.ended || audio.currentTime === 0
+    )
+
+    // If no free instance, use the current index (least recently used)
+    if (!freeAudio) {
+      freeAudio = audioPoolRef.current[audioIndexRef.current]
+    }
+
+    if (freeAudio) {
+      // Only reset if audio is not currently playing or has ended
+      if (freeAudio.paused || freeAudio.ended) {
+        freeAudio.currentTime = 0
+      }
+
+      // Create a new promise to handle play() properly
+      const playPromise = freeAudio.play()
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          // Handle any play() failures silently
+        })
+      }
 
       // Rotate to next audio instance
-      audioIndexRef.current = (audioIndexRef.current + 1) % 5
+      audioIndexRef.current = (audioIndexRef.current + 1) % audioPoolRef.current.length
     }
   }, [])
 
@@ -254,13 +274,29 @@ function App() {
           <div className="flex gap-4 justify-center mb-8">
             <button
               onClick={togglePlay}
-              className={`px-8 py-4 rounded-full font-semibold text-lg transition-all duration-300 transform hover:scale-105 ${
+              className={`px-12 py-4 rounded-full font-bold text-xl transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-xl hover:shadow-2xl ${
                 isPlaying
-                  ? `bg-gradient-to-r ${isDarkMode ? 'from-red-500 to-pink-500' : 'from-pink-500 to-red-500'} text-white shadow-lg`
-                  : `bg-gradient-to-r ${isDarkMode ? 'from-green-500 to-emerald-500' : 'from-emerald-500 to-green-500'} text-white shadow-lg`
-              }`}
+                  ? `bg-gradient-to-r ${isDarkMode
+                      ? 'from-red-500 via-pink-500 to-purple-500 hover:from-red-400 hover:via-pink-400 hover:to-purple-400'
+                      : 'from-pink-500 via-red-500 to-orange-500 hover:from-pink-400 hover:via-red-400 hover:to-orange-400'
+                    } text-white`
+                  : `bg-gradient-to-r ${isDarkMode
+                      ? 'from-green-500 via-emerald-500 to-teal-500 hover:from-green-400 hover:via-emerald-400 hover:to-teal-400'
+                      : 'from-emerald-500 via-green-500 to-teal-500 hover:from-emerald-400 hover:via-green-400 hover:to-teal-400'
+                    } text-white`
+              } backdrop-blur-sm border border-white/20`}
+              style={{
+                background: isPlaying
+                  ? isDarkMode
+                    ? 'linear-gradient(45deg, #ef4444, #ec4899, #a855f7)'
+                    : 'linear-gradient(45deg, #ec4899, #ef4444, #f97316)'
+                  : isDarkMode
+                    ? 'linear-gradient(45deg, #10b981, #059669, #0d9488)'
+                    : 'linear-gradient(45deg, #059669, #10b981, #0d9488)',
+                boxShadow: `0 8px 32px ${isPlaying ? 'rgba(236, 72, 153, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`
+              }}
             >
-              {isPlaying ? '⏸️ Pause' : '▶️ Play'}
+              {isPlaying ? 'Pause' : 'Play'}
             </button>
           </div>
 
