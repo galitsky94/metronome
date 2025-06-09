@@ -103,58 +103,69 @@ function App() {
           <div className="flex justify-center mb-12">
             <div className="flex items-end gap-1 h-32 px-8">
               {Array(15).fill(0).map((_, index) => {
+                // Spectrum colors - frequency-based like real audio visualizer
+                const getSpectrumColor = (barIndex: number, intensity: number) => {
+                  const normalizedIndex = barIndex / 14 // 0 to 1
+                  const hue = 220 + normalizedIndex * 100 // Blue to Pink spectrum
+                  const saturation = 70 + intensity * 30
+                  const lightness = isDarkMode ? 45 + intensity * 15 : 55 + intensity * 10
+                  return `hsl(${hue}, ${saturation}%, ${lightness}%)`
+                }
+
                 if (!isPlaying) {
-                  // Static state - gentle random heights
-                  const staticHeight = 15 + (index % 5) * 3
+                  // Static state with spectrum colors
+                  const staticHeight = 12 + Math.sin(index * 0.5) * 8
+                  const staticIntensity = 0.3
                   return (
                     <div
                       key={`eq-bar-${index}`}
-                      className={`w-2 transition-all duration-500 rounded-t-sm ${
-                        isDarkMode
-                          ? 'bg-gradient-to-t from-cyan-400 via-blue-500 to-purple-500'
-                          : 'bg-gradient-to-t from-cyan-500 via-purple-500 to-pink-500'
-                      }`}
+                      className="w-2 transition-all duration-700 rounded-t-sm"
                       style={{
                         height: `${staticHeight}%`,
-                        filter: 'brightness(0.4) saturate(0.8)',
-                        opacity: 0.7
+                        backgroundColor: getSpectrumColor(index, staticIntensity),
+                        opacity: 0.6,
+                        filter: 'saturate(0.8)'
                       }}
                     />
                   )
                 }
 
-                // Natural EQ simulation when playing
-                const time = Date.now() / 1000 // Convert to seconds
-                const barFreq = 0.5 + index * 0.3 // Each bar has different frequency
-                const beatPulse = Math.sin(time * (60 / interval) * 1000 * Math.PI / 500) // Sync with BPM
-                const naturalWave = Math.sin(time * barFreq + index) * 0.3 // Individual bar movement
-                const randomFlutter = Math.sin(time * (2 + index * 0.5)) * 0.15 // Random variation
+                // Wave animation - flows across bars naturally
+                const time = Date.now() / 1000
+                const waveSpeed = 2.5 // How fast the wave travels
+                const waveLength = 6 // How wide the wave is
 
-                // Frequency response simulation (lower frequencies react more to beats)
-                const freqResponse = index < 5 ? 0.8 : index < 10 ? 0.6 : 0.4
-                const beatInfluence = beatPulse * freqResponse
+                // Main traveling wave
+                const travelingWave = Math.sin((time * waveSpeed - index * 0.8) * Math.PI / waveLength)
 
-                // Combine all influences
-                const baseHeight = 20 + index * 2 // Base frequency curve
-                const dynamicMultiplier = 1 + beatInfluence + naturalWave + randomFlutter
-                const finalHeight = Math.max(baseHeight * dynamicMultiplier, 8)
+                // Secondary wave for complexity
+                const secondaryWave = Math.sin((time * waveSpeed * 1.3 + index * 0.6) * Math.PI / (waveLength * 1.5)) * 0.5
 
-                // Color intensity based on activity
-                const intensity = Math.max(0.3, Math.min(1.2, dynamicMultiplier))
+                // Beat synchronization - gentle pulse
+                const beatSync = Math.sin(time * (bpm / 60) * Math.PI) * 0.3
+
+                // Smooth wave combination
+                const waveHeight = (travelingWave + secondaryWave + beatSync) * 0.5 + 0.5 // Normalize to 0-1
+
+                // Base height curve (like real frequency spectrum)
+                const baseHeight = 15 + Math.sin(index * 0.3) * 10 + index * 1.5
+
+                // Final height with wave influence
+                const finalHeight = baseHeight + waveHeight * 45
+
+                // Intensity for color and effects
+                const intensity = 0.4 + waveHeight * 0.8
 
                 return (
                   <div
                     key={`eq-bar-${index}`}
-                    className={`w-2 transition-all duration-75 rounded-t-sm ${
-                      isDarkMode
-                        ? 'bg-gradient-to-t from-cyan-400 via-blue-500 to-purple-500'
-                        : 'bg-gradient-to-t from-cyan-500 via-purple-500 to-pink-500'
-                    }`}
+                    className="w-2 transition-all duration-100 rounded-t-sm"
                     style={{
-                      height: `${Math.min(finalHeight, 85)}%`,
-                      filter: `brightness(${intensity}) saturate(${intensity})`,
-                      boxShadow: intensity > 1 ? `0 0 ${6 * intensity}px rgba(139, 92, 246, ${0.3 * intensity})` : 'none',
-                      opacity: 0.8 + intensity * 0.2
+                      height: `${Math.min(Math.max(finalHeight, 8), 88)}%`,
+                      backgroundColor: getSpectrumColor(index, intensity),
+                      opacity: 0.85 + intensity * 0.15,
+                      filter: `brightness(${0.9 + intensity * 0.4}) saturate(${1 + intensity * 0.5})`,
+                      boxShadow: intensity > 0.7 ? `0 0 ${intensity * 8}px ${getSpectrumColor(index, intensity)}40` : 'none'
                     }}
                   />
                 )
