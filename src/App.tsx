@@ -40,7 +40,7 @@ function App() {
   // Initialize audio pool - 10 instances for better high BPM support
   useEffect(() => {
     audioPoolRef.current = Array(10).fill(null).map(() => {
-      const audio = new Audio('/sound-a-woman-enjoys-coitus (mp3cut.net).mp3')
+      const audio = new Audio('/sound-a-woman-enjoys-coitus (mp3cut.net) (1).mp3')
       audio.volume = 1.0
       audio.preload = 'auto'  // Preload audio for instant playback
       return audio
